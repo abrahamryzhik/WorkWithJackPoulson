@@ -24,48 +24,82 @@ def CholeskyFactorization(C):
 
 
 
-#x = np.matrix(((4.0, 12.0, -16.0), (12.0, 37.0, -43.0), (-16, -43, 98)))
 
+
+def SolveSPD1(A, b):
+    L = CholeskyFactorization(A)
+    
+    LT = L.transpose()
+    y = np.dot(LA.inv(L), b)
+    
+    return np.dot(LA.inv(LT), y)
 
 def SolveSPD(A, b):
-	L = CholeskyFactorization(A)
-	#print("A")
-	#print(A)
-	LT = L.transpose()
-	y = np.dot(LA.inv(L), b)
-	#print("y")
-	#print(y)
-	return np.dot(LA.inv(LT), y)
+    C = np.dot(A.transpose(), A)
+
+    L = CholeskyFactorization(C)
+
+    LT = L.transpose()
+
+    y = np.dot(A.transpose(), b)
+
+    z = LowerTriangularGaussianElimination(L, y)
+
+    x = UpperTriangularGaussianElimination(LT, z)
+
+    return x
+
 
 
 def RelativeResidual(A, b, x):
-	#print(A)
-	#print(b)
-	#print(x)
-	return (LA.norm(b-(np.dot(A, x))))/LA.norm(b)
+    
+    return (LA.norm(b-(np.dot(A, x))))/LA.norm(b)
 
-m = 100
-n = 100
-B = np.random.randn(m,n)
-A = np.dot(B, B.transpose())
+def LowerTriangularGaussianElimination(L, y):
+    x = y.copy()
 
-#print("original matrix")
-#print(A)
-#y = CholeskyFactorization(A)
-#print("L")
-#print(y)
-#print("LT")
-#print(y.transpose())
-#print("LLT")
-#print(np.dot(y, y.transpose()))
+    m, n = L.shape
+
+    for k in range(0, n):
+        sum = 0
+        for i in range(0, k):
+            sum += L[k, i]*x[i, 0]
+        x[k, 0] = (y[k, 0]-sum)/L[k, k]   
+
+    return x
+
+
+
+def UpperTriangularGaussianElimination(L, y):
+    x = y.copy()
+
+    m, n = L.shape
+
+    for k in range(0, n):
+        sum = 0
+        for i in range(0, k):
+            sum += L[n-k-1, n-1-i]*x[n-i-1, 0]
+        x[n-k-1, 0] = (y[n-k-1, 0]-sum)/L[n-k-1, n-k-1]
+
+    return x
+
+
+
+
+m = 1000
+n = 1000
+A = np.random.randn(m,n)
+
 
 b = np.random.randn(m, 1)
 
-#print(b)
 
 r = RelativeResidual(A, b, SolveSPD(A, b))
 
 print(r)
+
+
+
 
 
 
