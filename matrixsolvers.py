@@ -25,7 +25,7 @@ def CholeskyFactorization(C):
 
 
 
-
+#This uses inverses and has been replaced
 def SolveSPD1(A, b):
     L = CholeskyFactorization(A)
     
@@ -34,6 +34,7 @@ def SolveSPD1(A, b):
     
     return np.dot(LA.inv(LT), y)
 
+#Minimize the two-norm of Ax=b using AtA=Atb and Gaussian elimination of lower and upper triangular matrices
 def SolveSPD(A, b):
     C = np.dot(A.transpose(), A)
 
