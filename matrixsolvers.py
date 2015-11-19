@@ -117,7 +117,7 @@ def SolveSPD1(A, b, blocksize=64):
     return np.dot(LA.inv(LT), y)
 
 #Minimize the two-norm of Ax=b using AtA=Atb and Gaussian elimination of lower and upper triangular matrices
-def SolveNormalEquations(A, b, blocksize=64):
+def SolveNormalEquations(A, B, blocksize=64):
     C = np.dot(A.transpose(), A)
 
     L = C.copy(order='F')
@@ -126,15 +126,18 @@ def SolveNormalEquations(A, b, blocksize=64):
 
     #LT = L.transpose()
 
-    y = np.dot(A.transpose(), b)
+    Y = np.dot(A.transpose(), B)
 
     #z = LowerTriangularSolve(L, y)
 
-    #x = UpperTriangularSolve(LT, z)
-    x = solve_triangular(L,y,lower=1,trans=0)
-    x = solve_triangular(L,x,lower=1,trans=1)
+    #print(L)
+    #print(Y)
 
-    return x
+    #x = UpperTriangularSolve(LT, z)
+    X = solve_triangular(L,Y,lower=1,trans=0)
+    X = solve_triangular(L,X,lower=1,trans=1)
+
+    return X
 
 
 
@@ -173,16 +176,68 @@ def UpperTriangularSolve(L, y):
 
 
 
+def ApproxNNLS(A, B):
+    X = SolveNormalEquations(A, B)
+    m, n = X.shape
+
+    for j in xrange(n):
+        for i in xrange(m):
+            if X[i, j] <= 0:
+                X[i, j] = 0
+
+    return X
+
+def NMF(A, rank, numIts=20):
+
+    m, n = A.shape
+
+    F = np.random.uniform(low, high, (m, rank)).copy(order='F')
+    
+    AT = A.transpose().copy(order='F')
+
+    #Use a better stoping criteria than 20 iterations
+    for it in xrange(numIts):
+        #Solve for G and fix F
+
+        G = ApproxNNLS(F, A)
+        #print(G)
+
+        #Solve for F and fix G
+
+        F = ApproxNNLS(G.transpose().copy(order='F'), AT).transpose().copy(order='F')
+        #print(F)
+
+    return F, G
+
 m = 1000
 n = 1000
 blocksize = 64
-A = np.random.randn(m,n).copy(order='F')
+low = 0
+high = 10
+A = np.random.uniform(low, high, (m, n)).copy(order='F')
 
-b = np.random.randn(m, 1).copy(order='F')
+#b = np.random.randn(m, 1).copy(order='F')
 
-r = RelativeResidual(A, b, SolveNormalEquations(A, b, blocksize))
+#r = RelativeResidual(A, b, SolveNormalEquations(A, b, blocksize))
 
-print(r)
+#print(r)
+
+Anorm = LA.norm(A, ord='fro')
+
+numIts=100
+
+maxRank = 10
+
+for rank in xrange(1, maxRank):
+    F,G = NMF(A, rank, numIts)
+    #print(F)
+    #print(G)
+    E = A-np.dot(F, G)
+    Enorm = LA.norm(E, ord='fro')
+    print("||E||_F = %f" %Enorm)
+    print(Enorm/Anorm)
+
+
 
 
 
