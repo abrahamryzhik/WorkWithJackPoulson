@@ -4,6 +4,7 @@ import scipy.linalg.blas as BLAS
 from scipy.linalg import solve_triangular
 import ctypes
 from ctypes import byref, c_char, c_int, c_double
+import matplotlib.pyplot as plt
 
 try:
     _blaslib = ctypes.cdll.LoadLibrary(np.core._dotblas.__file__) # @UndefinedVariable
@@ -209,12 +210,40 @@ def NMF(A, rank, numIts=20):
 
     return F, G
 
+
+
+dimension = 2
+numcenters = 4
+#centers = np.array([[1, 2], [2, 1], [2, 3]])
+
+#dimensions of matrix that is to be clustered
 m = 1000
-n = 1000
+n = 2000
 blocksize = 64
+
+#range of values initiated in A
 low = 0
 high = 10
+
+#create perturbation with which to offset A from the cluster centers
+perturbation = .4
+P = np.random.uniform(-perturbation, perturbation, (m, n)).copy(order='F')
+
 A = np.random.uniform(low, high, (m, n)).copy(order='F')
+
+#create cluster centers that are copies of the first 3 columns of A, but with the first two rows fixed
+centers = A[:,[0,1,2,3]]
+centers[0,:] = [1,2,1,3]
+centers[1,:] = [2,1,4,3]
+print(centers)
+
+#change A so that every column is now a perturbed copy of a random cluster center
+for i in xrange(n):
+    center_index = np.random.randint(numcenters)
+    center = centers[:,center_index]
+    A[:,i] = center + P[:,i]
+
+
 
 #b = np.random.randn(m, 1).copy(order='F')
 
@@ -228,6 +257,7 @@ numIts=100
 
 maxRank = 10
 
+"""
 for rank in xrange(1, maxRank):
     F,G = NMF(A, rank, numIts)
     #print(F)
@@ -236,11 +266,79 @@ for rank in xrange(1, maxRank):
     Enorm = LA.norm(E, ord='fro')
     print("||E||_F = %f" %Enorm)
     print(Enorm/Anorm)
+"""
+
+rank = numcenters
+F,G = NMF(A, rank, numIts)
+E = A-np.dot(F, G)
+Enorm = LA.norm(E, ord='fro')
+print("||E||_F = %f" %Enorm)
+print(Enorm/Anorm)
+print(F)
+
+#Find matrix d that will be used to normalize G and find the correct cluster centers
+
+dsums = np.zeros(rank)
+dcount = np.zeros(rank)
+
+for j in xrange(n):
+    for i in xrange(rank):
+        index =  np.argmax(G[:,j])
+        dcount[index] += 1
+        dsums[index] += G[index, j]
+
+d = np.zeros((rank, rank))
+
+for k in xrange(rank):
+    d[k, k] = dsums[k]/dcount[k]
+
+dinverse = d.copy()
+
+for k in xrange(rank):
+    dinverse[k, k] = 1/dinverse[k, k]
+
+#change F and G by multiplying by d and d inverse so that F is the cluster centers and G is normalized
+
+F = np.dot(F, d)
+G = np.dot(dinverse, G)
+
+
+print ("Find d and change F and G")
+
+E = A-np.dot(F, G)
+Enorm = LA.norm(E, ord='fro')
+print("||E||_F = %f" %Enorm)
+print(Enorm/Anorm)
+print(F)
+
+
+
+#which points from the matrix to show on the 2d graph
+coord_1 = 432
+coord_2 = 576
+
+
+#plot each point of A, coloring it based on which cluster center it corresponds to using G
+for j in xrange(n):
+    index = np.argmax(G[:,j])
+    if index == 0:
+        plt.plot(A[coord_1, j], A[coord_2, j], 'r.')
+    elif index == 1:
+        plt.plot(A[coord_1, j], A[coord_2, j], 'g.')
+    elif index == 2:
+        plt.plot(A[coord_1, j], A[coord_2, j], 'y.') 
+    elif index == 3:
+        plt.plot(A[coord_1, j], A[coord_2, j], 'b.')
+
+for k in xrange(rank):
+    plt.plot(F[coord_1, k], F[coord_2, k], "ko")
 
 
 
 
 
-
-
-
+#plt.plot(A[0,:], A[1,:], 'k.')
+plt.axis([0, 11, 0, 11])
+plt.xlabel("Coordinate %d" %coord_1)
+plt.ylabel("Coordinate %d" %coord_2)
+plt.show()
