@@ -5,6 +5,10 @@ from scipy.linalg import solve_triangular
 import ctypes
 from ctypes import byref, c_char, c_int, c_double
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+import csv
+from scipy.optimize import nnls
+from random import randint
 
 try:
     _blaslib = ctypes.cdll.LoadLibrary(np.core._dotblas.__file__) # @UndefinedVariable
@@ -142,6 +146,8 @@ def SolveNormalEquations(A, B, blocksize=64):
 
 
 
+
+
 def RelativeResidual(A, b, x):
     
     return (LA.norm(b-(np.dot(A, x))))/LA.norm(b)
@@ -177,8 +183,9 @@ def UpperTriangularSolve(L, y):
 
 
 
-def ApproxNNLS(A, B):
-    X = SolveNormalEquations(A, B)
+def ApproxNNLS1(A, B):
+    #X = SolveNormalEquations(A, B)
+    X = LA.lstsq(A,B)[0]
     m, n = X.shape
 
     for j in xrange(n):
@@ -187,6 +194,24 @@ def ApproxNNLS(A, B):
                 X[i, j] = 0
 
     return X
+
+def ApproxNNLS(A, B):
+
+    m, n = A.shape
+    #print("m: ", m)
+    #print("n: ", n)
+
+    m, numcols = B.shape
+    #print("numcols: ", numcols)
+
+    X = np.zeros((n, numcols)).copy(order='F')
+
+    for j in xrange(numcols):
+        x, rnorm = nnls(A, B[:,j])
+        X[:,j] = x.copy(order='F')
+
+    return X
+
 
 def NMF(A, rank, numIts=20):
 
@@ -199,8 +224,10 @@ def NMF(A, rank, numIts=20):
     #Use a better stoping criteria than 20 iterations
     for it in xrange(numIts):
         #Solve for G and fix F
-
+        print(it)
         G = ApproxNNLS(F, A)
+
+
         #print(G)
 
         #Solve for F and fix G
@@ -211,14 +238,76 @@ def NMF(A, rank, numIts=20):
     return F, G
 
 
+def corsen(A):
+    pass
+
+def interpolate(A):
+    pass
+
+def shorten_digits(A, numSamples = 4000):
+    m, n = A.shape
+
+    if numSamples >= n:
+        return A
+
+    s = np.zeros((numSamples, 1), dtype = int)
+    for i in xrange(numSamples):
+        s[i] = randint(0,n-1)
+
+    sUnique = np.unique(s)
+
+    return A[:, sUnique]
+
 
 dimension = 2
-numcenters = 4
+numcenters = 10
 #centers = np.array([[1, 2], [2, 1], [2, 3]])
 
+
+
+#A = np.random.uniform(low, high, (m, n)).copy(order='F')
+
+result = np.array(list(csv.reader(open("train.csv","rb"),delimiter=','))).astype('float')
+#digits = result[:,0]
+#data = result[:, 1:]
+A = result.transpose().copy(order='F')
+
+A = shorten_digits(A)
+
+m, n = A.shape
+
+Dnum = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+D = [np.zeros((0,0)),np.zeros((0,0)),np.zeros((0,0)),np.zeros((0,0)),np.zeros((0,0)),np.zeros((0,0)),np.zeros((0,0)),np.zeros((0,0)),np.zeros((0,0)),np.zeros((0,0))]
+for i in xrange(n):
+    Dnum[int(A[0, i])] += 1
+
+for i in xrange(10):
+    D[i] = np.zeros((28*28, Dnum[i]))
+
+
+
+perm = np.argsort(A[0,:n])
+
+A = A[:,perm]
+Dindex = np.zeros((10,1))
+for i in xrange(11):
+    if i == 0:
+        Dindex[i] = 0
+
+    else:
+        Dindex[i] = Dindex[i-1] + Dnum[i-1] 
+
+for i in xrange(10):
+    D[i] = A[1:m, Dindex[i]:Dindex[i+1]]
+
+
+
 #dimensions of matrix that is to be clustered
-m = 1000
-n = 2000
+
+A = D[5]
+
+
+m, n = A.shape
 blocksize = 64
 
 #range of values initiated in A
@@ -226,23 +315,43 @@ low = 0
 high = 10
 
 #create perturbation with which to offset A from the cluster centers
-perturbation = .4
-P = np.random.uniform(-perturbation, perturbation, (m, n)).copy(order='F')
+perturbation = 5
+gaussian = True
+if gaussian:
+    P = np.random.normal(0, perturbation, (m, n)).copy(order='F')
+else: P = np.random.uniform(-perturbation, perturbation, (m, n)).copy(order='F')
 
-A = np.random.uniform(low, high, (m, n)).copy(order='F')
+#A=A+P
+"""
+for i in xrange(m):
+    for j in xrange(n):
+        if A[i,j] == 0:
+            A[i,j] += P[i,j]
+"""
 
+print(A)
 #create cluster centers that are copies of the first 3 columns of A, but with the first two rows fixed
-centers = A[:,[0,1,2,3]]
-centers[0,:] = [1,2,1,3]
-centers[1,:] = [2,1,4,3]
-print(centers)
+
+
+
+#centers = A[:, :numcenters].copy() IMPORTANT LINE IF NOT READING DATA
+
+
+
+#centers = A.copy(m, numcenters)
+#centers = A[:, 0:numcenters]
+#centers[0,:] = [1,2,1,3,4]
+#centers[1,:] = [2,1,4,3,5]
+#print(centers)
 
 #change A so that every column is now a perturbed copy of a random cluster center
+"""
 for i in xrange(n):
     center_index = np.random.randint(numcenters)
     center = centers[:,center_index]
     A[:,i] = center + P[:,i]
 
+"""
 
 
 #b = np.random.randn(m, 1).copy(order='F')
@@ -253,7 +362,7 @@ for i in xrange(n):
 
 Anorm = LA.norm(A, ord='fro')
 
-numIts=100
+numIts=80
 
 maxRank = 10
 
@@ -292,6 +401,7 @@ d = np.zeros((rank, rank))
 for k in xrange(rank):
     d[k, k] = dsums[k]/dcount[k]
 
+
 dinverse = d.copy()
 
 for k in xrange(rank):
@@ -314,31 +424,92 @@ print(F)
 
 
 #which points from the matrix to show on the 2d graph
-coord_1 = 432
-coord_2 = 576
+coord_1 = 500
+coord_2 = 600
 
-
+colors = ['r.', 'g.', 'y.', 'b.', 'm.', 'c.']
 #plot each point of A, coloring it based on which cluster center it corresponds to using G
-for j in xrange(n):
-    index = np.argmax(G[:,j])
-    if index == 0:
-        plt.plot(A[coord_1, j], A[coord_2, j], 'r.')
-    elif index == 1:
-        plt.plot(A[coord_1, j], A[coord_2, j], 'g.')
-    elif index == 2:
-        plt.plot(A[coord_1, j], A[coord_2, j], 'y.') 
-    elif index == 3:
-        plt.plot(A[coord_1, j], A[coord_2, j], 'b.')
 
+"""
+for j in xrange(n):
+    index = np.argmax(G[:,j]) % 6
+    plt.plot(A[coord_1, j], A[coord_2, j], colors[index])
+"""
+
+indices = np.zeros((n, 1))
+
+for j in xrange(n):
+    distances = []
+    
+    for k in xrange(rank):
+        distances.append(LA.norm(A[:,j]-F[:,k]))
+    index = distances.index(min(distances))
+    indices[j] = index
+
+permutation = np.argsort(indices)
+
+sorted_indices = indices[permutation]
+
+sorted_A = A[:,permutation]
+
+for i in xrange(20):
+    digit = np.zeros((28,28))
+    
+for i in xrange(10):
+    for k in xrange(28*28):
+        row = int(k/28)
+        column = k % 28
+        digit[row,column] = A[k,i]
+
+
+    #imgplot = plt.imshow(digit, cmap=cm.Greys_r)
+
+    print('Sorted index: ', sorted_indices[i])
+
+   # plt.show()
+
+
+
+
+
+
+#First, sort data by index
+#Second, find % of data with same actual digit 
+
+    #plt.plot(A[coord_1, j], A[coord_2, j], colors[index])
+
+"""
 for k in xrange(rank):
     plt.plot(F[coord_1, k], F[coord_2, k], "ko")
+"""
+#firstdigit = F[:,0]
+
+
+
+digit = np.zeros((28,28))
+    
+for i in xrange(10):
+    for k in xrange(28*28):
+        row = int(k/28)
+        column = k % 28
+        digit[row,column] = F[k,i]
+
+
+
+
+    imgplot = plt.imshow(digit, cmap=cm.Greys_r)
+    plt.show()
 
 
 
 
 
+
+
+"""
 #plt.plot(A[0,:], A[1,:], 'k.')
-plt.axis([0, 11, 0, 11])
+plt.axis([-1, 11, -1, 11])
 plt.xlabel("Coordinate %d" %coord_1)
 plt.ylabel("Coordinate %d" %coord_2)
 plt.show()
+"""
