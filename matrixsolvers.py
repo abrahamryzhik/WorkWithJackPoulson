@@ -289,7 +289,7 @@ for i in xrange(10):
 perm = np.argsort(A[0,:n])
 
 A = A[:,perm]
-Dindex = np.zeros((10,1))
+Dindex = np.zeros((11,1))
 for i in xrange(11):
     if i == 0:
         Dindex[i] = 0
@@ -304,7 +304,7 @@ for i in xrange(10):
 
 #dimensions of matrix that is to be clustered
 
-A = D[5]
+A = D[4]
 
 
 m, n = A.shape
