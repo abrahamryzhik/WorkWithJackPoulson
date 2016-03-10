@@ -281,7 +281,8 @@ def centers(mat):
 
     maxRank = 10
 
-    rank = numcenters
+    #rank = numcenters
+    rank = 15
     F,G = NMF(mat, rank, numIts)
     E = mat-np.dot(F, G)
     Enorm = LA.norm(E, ord='fro')
@@ -303,13 +304,24 @@ def centers(mat):
     d = np.zeros((rank, rank))
 
     for k in xrange(rank):
-        d[k, k] = dsums[k]/dcount[k]
+        if dcount[k] != 0:
+            d[k, k] = dsums[k]/dcount[k]
+        else:
+            d[k,k] = 0
+            # print("GOT HERE LET'S HOPE IT WORKED")
+            # raw_input("press enter")
+        
+        # if dcount[k] == 0:
+        #     print("OMG SOMETHING WENT WRONG")
+        #     raw_input("press enter")
 
 
     dinverse = d.copy()
 
     for k in xrange(rank):
         dinverse[k, k] = 1/dinverse[k, k]
+
+
 
     #change F and G by multiplying by d and d inverse so that F is the cluster centers and G is normalized
 
