@@ -9,6 +9,7 @@ import matplotlib.cm as cm
 import csv
 from scipy.optimize import nnls
 from random import randint
+import math
 
 try:
     _blaslib = ctypes.cdll.LoadLibrary(np.core._dotblas.__file__) # @UndefinedVariable
@@ -206,9 +207,16 @@ def ApproxNNLS(A, B):
 
     X = np.zeros((n, numcols)).copy(order='F')
 
-    for j in xrange(numcols):
-        x, rnorm = nnls(A, B[:,j])
-        X[:,j] = x.copy(order='F')
+    # for j in xrange(numcols):
+    #     x, rnorm = nnls(A, B[:,j])
+
+    #     X[:,j] = x.copy(order='F')
+
+    X = LA.lstsq(A, B)[0].copy(order='F')
+
+    X = np.clip(X,0,10^6)
+
+   
 
     return X
 
@@ -317,7 +325,7 @@ def centers(mat):
     print(Enorm/Anorm)
     print(F)
 
-    return F
+    return F,Enorm
 
 #CONSTANTS
 
@@ -353,7 +361,7 @@ D = [np.zeros((0,0)),np.zeros((0,0)),np.zeros((0,0)),np.zeros((0,0)),np.zeros((0
 for i in xrange(n):
     Dnum[int(A[0, i])] += 1
 
-for i in xrange(10):
+for i in xrange(numcenters):
     D[i] = np.zeros((28*28, Dnum[i]))
 
 
@@ -377,23 +385,67 @@ for i in xrange(10):
 #dimensions of matrix that is to be clustered
 
 F = []
+Enorms = []
 
 
 
-indices = np.zeros((n, 1))
 
 for i in xrange(numcenters):
 
-    F.append(centers(D[i]))        
+    f,Enorm = centers(D[i])
+
+    F.append(f)     
+
+    Enorms.append(Enorm)   
+
+# real_rank = rank
+
+# for i in xrange(numcenters):
+#     # E = A-np.dot(F[i], G[i])
+#     # Enorm = LA.norm(E, ord='fro')
+#     M,N = F[i].shape
+
+#     if math.isnan(Enorms[i]):
+#         indeces = []
+#         hasNan= False
+#         for j in xrange(rank):
+
+#             for l in xrange(N):
+#                 if math.isnan(F[i][l,j]):
+#                     hasNan = True
+
+#             if hasNan:
+#                 indeces.append(j)
+
+#         if (rank-len(indeces)) < real_rank:
+#             real_rank = rank-len(indeces)
+
+#         numDone = 0
+#         for index in indeces:
+#             m1 = F[i][:,0:index+numDone]
+#             m2 = F[i][:,index+1+numDone:]
+#             np.concatenate((m1,m2), axis=1)
+#             numDone+= 1
+#             #somehow splice F to remove column at index
+
+# for i in xrange(numcenters):
+#     F[i] = F[i][:,0:real_rank]
+
+# print("Real rank: ", real_rank)
 
 
-#A = D[7]
 
-#m,n = A.shape
+
+#for j in xrange(rank):
+
+
+#A = D[8]
+
+m,n = A.shape
 
 #F = centers(A)
 
-
+#COMMENT STARTS HERE
 indices = np.zeros((n, 1))
 
 
@@ -403,48 +455,67 @@ num_correct = 0.
 
 for j in xrange(n):
     distances = []
+    combinations = []
     
     for k in xrange(rank):
         #distances.append(LA.norm(A[1:,j]-F[int(k/numcenters)][:,int(k/numcenters)]))
-        y = LA.lstsq(F[k],A[1:,j])
 
-        print("y: ", y)
-        print("F[k]: ", F[k])
-        print("A[1:,j]: ", A[1:,j])
+        print("F dimensions: ", F[k].shape)
+        print("A Dimensinos: ", A[1:,j].shape)
+        y = LA.lstsq(F[k],A[1:,j])[0]
 
-        distance = LA.norm(np.dot(F[k],y)-A[1:,j])
+        #print("y: ", y)
+        #print("F[k]: ", F[k])
+        #print("A[1:,j]: ", A[1:,j])
+
+        combo = np.dot(F[k],y)
+
+        distance = LA.norm(combo-A[1:,j])
         distances.append(distance)
+        combinations.append(combo)
+
     index = distances.index(min(distances))
 
     if index == A[0,j]:
 
         num_correct += 1
-    
+    #COMMENT ENDS HERE    
 
-    """    
+    """  
     else:
 
         print("Wrong")
         print("Guess: ", index)
         print("Actual: ", A[0,j])
+        
 
-        digit = np.zeros((28,28))
+        # digit = np.zeros((28,28))
 
-        for l in xrange(28*28):
-            row = int(l/28)
-            column = l % 28
-            digit[row,column] = A[l,j]#F[k,i]
+        # for l in xrange(28*28):
+        #     row = int(l/28)
+        #     column = l % 28
+        #     digit[row,column] = A[l,j]#F[k,i]
 
+        digit = np.reshape(A[1:,j], (28,28))
+
+        plt.figure(1)
         imgplot = plt.imshow(digit, cmap=cm.Greys_r)
+        #plt.show()
+
+        combo = np.reshape(combinations[index], (28,28))
+
+        plt.figure(2)
+        imgplot = plt.imshow(combo, cmap=cm.Greys_r)
         plt.show()
 
-        input("press enter")
-    """    
+        raw_input("press enter")
+    """
+    
     indices[j] = index
 
 print("Accuracy:")
 print(num_correct/n)
-
+#COMMENT ENDS HERE
 
 """
 permutation = np.argsort(Indices)
@@ -487,7 +558,6 @@ for k in xrange(rank):
 """
 #firstdigit = F[:,0]
 
-
 """
 digit = np.zeros((28,28))
     
@@ -501,11 +571,10 @@ for i in xrange(10):
 
 
     imgplot = plt.imshow(digit, cmap=cm.Greys_r)
-    #plt.show()
+    plt.show()
 
 
 """
-
 
 
 

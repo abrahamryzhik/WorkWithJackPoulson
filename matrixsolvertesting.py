@@ -230,7 +230,7 @@ low = 0
 high = 10
 
 #create perturbation with which to offset A from the cluster centers
-perturbation = .5
+perturbation = .7
 gaussian = True
 if gaussian:
     P = np.random.normal(-perturbation, perturbation, (m, n)).copy(order='F')
