@@ -348,6 +348,10 @@ rank = numcenters
 #A = np.random.uniform(low, high, (m, n)).copy(order='F')
 
 result = np.array(list(csv.reader(open("train.csv","rb"),delimiter=','))).astype('float')
+
+test_data = np.array(list(csv.reader(open("mnist_test.csv", "rb"),delimiter=','))).astype('float')
+
+B = test_data.transpose().copy(order='F')
 #digits = result[:,0]
 #data = result[:, 1:]
 A = result.transpose().copy(order='F')
@@ -451,6 +455,8 @@ indices = np.zeros((n, 1))
 
 num_correct = 0.
 
+counting_for_showing = 0
+
 
 
 for j in xrange(n):
@@ -460,9 +466,15 @@ for j in xrange(n):
     for k in xrange(rank):
         #distances.append(LA.norm(A[1:,j]-F[int(k/numcenters)][:,int(k/numcenters)]))
 
+        """
         print("F dimensions: ", F[k].shape)
-        print("A Dimensinos: ", A[1:,j].shape)
+        print("A Dimensions: ", A[1:,j].shape)
         y = LA.lstsq(F[k],A[1:,j])[0]
+        """
+
+        print("F dimensions: ", F[k].shape)
+        print("B dimensions: ", B[1:,j].shape)
+        y = LA.lstsq(F[k],B[1:,j])[0]
 
         #print("y: ", y)
         #print("F[k]: ", F[k])
@@ -470,46 +482,76 @@ for j in xrange(n):
 
         combo = np.dot(F[k],y)
 
-        distance = LA.norm(combo-A[1:,j])
+        #distance = LA.norm(combo-A[1:,j])
+        distance = LA.norm(combo-B[1:,j])
         distances.append(distance)
         combinations.append(combo)
 
     index = distances.index(min(distances))
 
-    if index == A[0,j]:
+    show_correct = False
+    show_wrong = False
+
+    #if index == A[0,j]:
+    if index == B[0,j]:
 
         num_correct += 1
+
+        if show_correct == True:
+
+            if (counting_for_showing % 100) == 0:
+
+                #digit = np.reshape(A[1:,j], (28,28))
+                digit = np.reshape(B[1:,j], (28,28))
+
+                plt.figure(1)
+                imgplot = plt.imshow(digit, cmap=cm.Greys_r)
+                #plt.show()
+
+                combo = np.reshape(combinations[index], (28,28))
+
+                plt.figure(2)
+                imgplot = plt.imshow(combo, cmap=cm.Greys_r)
+                plt.show()
+
+                raw_input("press enter")
+
+            counting_for_showing += 1
     #COMMENT ENDS HERE    
 
-    """  
+    
     else:
 
-        print("Wrong")
-        print("Guess: ", index)
-        print("Actual: ", A[0,j])
-        
+        if show_wrong == True:
 
-        # digit = np.zeros((28,28))
+            print("Wrong")
+            print("Guess: ", index)
+            #print("Actual: ", A[0,j])
+            print("Actual: ", B[0,j])
+            
 
-        # for l in xrange(28*28):
-        #     row = int(l/28)
-        #     column = l % 28
-        #     digit[row,column] = A[l,j]#F[k,i]
+            # digit = np.zeros((28,28))
 
-        digit = np.reshape(A[1:,j], (28,28))
+            # for l in xrange(28*28):
+            #     row = int(l/28)
+            #     column = l % 28
+            #     digit[row,column] = A[l,j]#F[k,i]
 
-        plt.figure(1)
-        imgplot = plt.imshow(digit, cmap=cm.Greys_r)
-        #plt.show()
+            #digit = np.reshape(A[1:,j], (28,28))
+            digit = np.reshape(B[1:,j], (28,28))
 
-        combo = np.reshape(combinations[index], (28,28))
+            plt.figure(1)
+            imgplot = plt.imshow(digit, cmap=cm.Greys_r)
+            #plt.show()
 
-        plt.figure(2)
-        imgplot = plt.imshow(combo, cmap=cm.Greys_r)
-        plt.show()
+            combo = np.reshape(combinations[index], (28,28))
 
-        raw_input("press enter")
-    """
+            plt.figure(2)
+            imgplot = plt.imshow(combo, cmap=cm.Greys_r)
+            plt.show()
+
+            raw_input("press enter")
+    
     
     indices[j] = index
 
